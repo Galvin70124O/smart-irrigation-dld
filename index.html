@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101714">
+  <title>Smart Irrigation Decision Controller | DLD</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <section class="startup-sequence" id="startup-sequence" aria-label="System startup" hidden>
+    <div class="startup-mark">SIRC-01</div>
+    <p class="eyebrow">U24CS306 · DIGITAL LOGIC DESIGN</p>
+    <h1>SMART IRRIGATION<br>DECISION CONTROLLER</h1>
+    <p class="startup-progress-label">INITIALIZING LOGIC...</p>
+    <div class="startup-checks"><span>D <b>READY</b></span><span>R' <b>READY</b></span><span>W <b>READY</b></span><span>PRIORITY <b>READY</b></span></div>
+    <strong class="startup-online">SYSTEM ONLINE</strong>
+    <button id="skip-startup" class="text-button" type="button">SKIP INTRO</button>
+  </section>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Smart Irrigation home">
+        <span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span id="sirc-identifier">SIRC-01<span class="brand-divider">/</span>U24CS306</span>
+      </a>
+      <div class="header-meta"><span id="system-indicator" class="live-dot"></span><span id="system-online-label">SYSTEM ONLINE</span><span class="meta-separator">LAST UPDATE: LIVE</span><span class="meta-separator mode-label">MODE: AUTOMATIC</span>
+        <button type="button" id="theme-toggle" class="utility-button" aria-pressed="false" title="Switch to light mode"><span aria-hidden="true">☼</span><span class="theme-label">LIGHT</span></button>
+        <button type="button" id="presentation-toggle" class="utility-button presentation-toggle" aria-pressed="false">PRESENTATION MODE</button>
+        <button type="button" id="reset-button" class="utility-button reset-system-button">RESET SYSTEM</button>
+      </div>
+    </header>
+
+    <nav class="section-nav" aria-label="Page sections">
+      <div class="nav-links"><a href="#control">01 CONTROL</a><a href="#logic">02 LOGIC</a><a href="#priority">03 ALLOCATION</a><a href="#truth">04 VALIDATION</a><a href="#demo">05 DEMO</a></div>
+      <div class="view-toggle" role="group" aria-label="Interface view"><button type="button" class="view-button is-selected" data-view="control" aria-pressed="true">CONTROL VIEW</button><button type="button" class="view-button" data-view="logic" aria-pressed="false">LOGIC VIEW</button></div>
+    </nav>
+
+    <main id="top">
+      <section class="intro" aria-labelledby="page-title">
+        <div class="intro-copy">
+          <p class="eyebrow">DIGITAL LOGIC DESIGN <span class="course-label">U24CS306</span></p>
+          <h1 id="page-title">SMART IRRIGATION<br><em>DECISION CONTROLLER</em></h1>
+          <p class="intro-subtitle">Deterministic digital logic for selective multi-zone irrigation.</p>
+        </div>
+        <div class="decision-instrument" aria-live="polite" aria-label="Current irrigation decision">
+          <div class="decision-topline"><span class="decision-kicker">CURRENT DECISION</span><span id="decision-priority" class="decision-priority">PRIORITY 01</span></div>
+          <strong id="decision-title" class="decision-title">NO IRRIGATION</strong>
+          <span id="decision-zone" class="decision-zone">AWAITING REQUEST</span>
+          <div class="decision-bits"><span>D <b id="decision-d">0</b></span><span>R <b id="decision-r">0</b></span><span>R' <b id="decision-not-r">1</b></span><span>W <b id="decision-w">1</b></span></div>
+          <div class="decision-equation"><span>D · R' · W</span><strong id="decision-calculation">0 · 1 · 1 = 0</strong><b id="decision-output">OUTPUT LOW</b></div>
+          <div class="decision-footer"><span id="decision-reason-label">REASON</span><span id="decision-reason-short">Soil is wet</span><button type="button" id="why-button" class="why-button" aria-expanded="false">WHY?</button></div>
+          <p id="why-explanation" class="why-explanation" hidden></p>
+        </div>
+      </section>
+
+      <section class="status-strip" aria-label="System status">
+        <div class="status-item water-status">
+          <span class="status-label">WATER SUPPLY</span>
+          <strong id="water-status" class="status-value">AVAILABLE</strong>
+          <span class="status-symbol" aria-hidden="true"></span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">ACTIVE ZONE</span>
+          <strong id="active-zone" class="status-value accent-value">NONE</strong>
+        </div>
+        <div class="status-item">
+          <span class="status-label">ELIGIBLE ZONES</span>
+          <strong id="eligible-count" class="status-value">0 <small>/ 3</small></strong>
+        </div>
+        <div class="status-item decision-status">
+          <span class="status-label">MODE / DECISION</span>
+          <strong id="priority-decision" class="status-value">AUTOMATIC / STANDBY</strong>
+        </div>
+      </section>
+
+      <section class="zones-section" id="control" aria-labelledby="zones-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">FIELD INPUTS <span>01—03</span></p><h2 id="zones-title">Zone control</h2></div>
+          <div class="global-water">
+            <span class="global-water-label">GLOBAL WATER</span>
+            <div class="segmented" role="group" aria-label="Water availability">
+              <button type="button" class="segment is-selected" data-water="available" aria-pressed="true">AVAILABLE</button>
+              <button type="button" class="segment" data-water="unavailable" aria-pressed="false">UNAVAILABLE</button>
+            </div>
+            <button type="button" class="emergency-button" id="emergency-stop">EMERGENCY STOP</button>
+          </div>
+        </div>
+
+        <div class="zone-grid">
+          <article class="zone-card" data-zone="A">
+            <div class="zone-card-head">
+              <div><span class="zone-index">01 / PRIORITY 1</span><h3>ZONE <b>A</b></h3></div>
+              <span class="zone-state" data-valve-label>VALVE CLOSED</span>
+            </div>
+            <div class="zone-controls">
+              <div class="control-row">
+                <span class="control-label">SOIL <b data-soil-label>WET</b></span>
+                <div class="segmented compact" role="group" aria-label="Zone A soil condition">
+                  <button type="button" class="segment is-selected" data-control="soil" data-value="wet" aria-pressed="true">WET</button>
+                  <button type="button" class="segment" data-control="soil" data-value="dry" aria-pressed="false">DRY</button>
+                </div>
+              </div>
+              <div class="control-row">
+                <span class="control-label">RAIN <b data-rain-label>CLEAR</b></span>
+                <div class="segmented compact" role="group" aria-label="Zone A rain condition">
+                  <button type="button" class="segment is-selected" data-control="rain" data-value="no-rain" aria-pressed="true">NO RAIN</button>
+                  <button type="button" class="segment" data-control="rain" data-value="rain" aria-pressed="false">RAIN</button>
+                </div>
+              </div>
+            </div>
+            <div class="logic-readout">
+              <span class="readout-heading">DIGITAL INPUTS</span>
+              <div class="input-values"><span>D <b data-input="D">0</b></span><span>R <b data-input="R">0</b></span><span>W <b data-input="W">1</b></span></div>
+              <div class="request-row"><span>REQUEST <small>D · R' · W</small></span><b data-request>0</b></div>
+            </div>
+            <div class="valve-output">
+              <div class="valve-indicator" aria-hidden="true"><span></span></div>
+              <div><span class="output-label" data-zone-status>READY</span><strong data-valve-text>VALVE CLOSED</strong><small class="watering-label" data-water-state></small></div>
+              <div class="water-flow" aria-hidden="true"><i></i><i></i><i></i></div>
+            </div>
+          </article>
+
+          <article class="zone-card" data-zone="B">
+            <div class="zone-card-head">
+              <div><span class="zone-index">02 / PRIORITY 2</span><h3>ZONE <b>B</b></h3></div>
+              <span class="zone-state" data-valve-label>VALVE CLOSED</span>
+            </div>
+            <div class="zone-controls">
+              <div class="control-row">
+                <span class="control-label">SOIL <b data-soil-label>WET</b></span>
+                <div class="segmented compact" role="group" aria-label="Zone B soil condition">
+                  <button type="button" class="segment is-selected" data-control="soil" data-value="wet" aria-pressed="true">WET</button>
+                  <button type="button" class="segment" data-control="soil" data-value="dry" aria-pressed="false">DRY</button>
+                </div>
+              </div>
+              <div class="control-row">
+                <span class="control-label">RAIN <b data-rain-label>CLEAR</b></span>
+                <div class="segmented compact" role="group" aria-label="Zone B rain condition">
+                  <button type="button" class="segment is-selected" data-control="rain" data-value="no-rain" aria-pressed="true">NO RAIN</button>
+                  <button type="button" class="segment" data-control="rain" data-value="rain" aria-pressed="false">RAIN</button>
+                </div>
+              </div>
+            </div>
+            <div class="logic-readout">
+              <span class="readout-heading">DIGITAL INPUTS</span>
+              <div class="input-values"><span>D <b data-input="D">0</b></span><span>R <b data-input="R">0</b></span><span>W <b data-input="W">1</b></span></div>
+              <div class="request-row"><span>REQUEST <small>D · R' · W</small></span><b data-request>0</b></div>
+            </div>
+            <div class="valve-output">
+              <div class="valve-indicator" aria-hidden="true"><span></span></div>
+              <div><span class="output-label" data-zone-status>READY</span><strong data-valve-text>VALVE CLOSED</strong><small class="watering-label" data-water-state></small></div>
+              <div class="water-flow" aria-hidden="true"><i></i><i></i><i></i></div>
+            </div>
+          </article>
+
+          <article class="zone-card" data-zone="C">
+            <div class="zone-card-head">
+              <div><span class="zone-index">03 / PRIORITY 3</span><h3>ZONE <b>C</b></h3></div>
+              <span class="zone-state" data-valve-label>VALVE CLOSED</span>
+            </div>
+            <div class="zone-controls">
+              <div class="control-row">
+                <span class="control-label">SOIL <b data-soil-label>WET</b></span>
+                <div class="segmented compact" role="group" aria-label="Zone C soil condition">
+                  <button type="button" class="segment is-selected" data-control="soil" data-value="wet" aria-pressed="true">WET</button>
+                  <button type="button" class="segment" data-control="soil" data-value="dry" aria-pressed="false">DRY</button>
+                </div>
+              </div>
+              <div class="control-row">
+                <span class="control-label">RAIN <b data-rain-label>CLEAR</b></span>
+                <div class="segmented compact" role="group" aria-label="Zone C rain condition">
+                  <button type="button" class="segment is-selected" data-control="rain" data-value="no-rain" aria-pressed="true">NO RAIN</button>
+                  <button type="button" class="segment" data-control="rain" data-value="rain" aria-pressed="false">RAIN</button>
+                </div>
+              </div>
+            </div>
+            <div class="logic-readout">
+              <span class="readout-heading">DIGITAL INPUTS</span>
+              <div class="input-values"><span>D <b data-input="D">0</b></span><span>R <b data-input="R">0</b></span><span>W <b data-input="W">1</b></span></div>
+              <div class="request-row"><span>REQUEST <small>D · R' · W</small></span><b data-request>0</b></div>
+            </div>
+            <div class="valve-output">
+              <div class="valve-indicator" aria-hidden="true"><span></span></div>
+              <div><span class="output-label" data-zone-status>READY</span><strong data-valve-text>VALVE CLOSED</strong><small class="watering-label" data-water-state></small></div>
+              <div class="water-flow" aria-hidden="true"><i></i><i></i><i></i></div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="map-section" id="live-map" aria-labelledby="map-title">
+        <div class="section-heading"><div><p class="eyebrow">DISTRIBUTION OVERVIEW</p><h2 id="map-title">Live irrigation map</h2></div><span id="map-state" class="map-state">SYSTEM READY</span></div>
+        <div class="map-stage">
+          <svg class="map-svg" viewBox="0 0 1000 320" role="img" aria-label="Water source feeds the main control and three zone valves">
+            <path class="map-pipe trunk" d="M150 72 H500 V125 M250 125 H750 M250 125 V194 M500 125 V194 M750 125 V194"></path>
+            <path class="map-pipe map-flow" data-map-pipe="A" d="M250 125 V194"></path>
+            <path class="map-pipe map-flow" data-map-pipe="B" d="M500 125 V194"></path>
+            <path class="map-pipe map-flow" data-map-pipe="C" d="M750 125 V194"></path>
+            <g class="map-source"><rect x="35" y="39" width="150" height="66" rx="8"></rect><path d="M61 72h35l9-14 16 28 11-14h26"></path><text x="110" y="27" text-anchor="middle">WATER SOURCE</text><text id="map-water-label" x="110" y="93" text-anchor="middle">AVAILABLE</text></g>
+            <g class="map-controller"><rect x="405" y="37" width="190" height="72" rx="8"></rect><circle cx="433" cy="73" r="7"></circle><path d="M451 60h112M451 73h82M451 86h96"></path><text x="500" y="26" text-anchor="middle">MAIN CONTROL</text><text x="500" y="96" text-anchor="middle">D · R' · W</text></g>
+            <g class="map-zone" data-map-zone="A"><circle class="map-valve" cx="250" cy="194" r="19"></circle><path class="valve-mark" d="M241 185l18 18m0-18l-18 18"></path><path class="field-mark" d="M222 237h56M229 248h42M236 259h28"></path><text x="250" y="169" text-anchor="middle">A01</text><text class="map-zone-state" x="250" y="278" text-anchor="middle">IDLE</text><text class="map-field-state" data-map-field="A" x="250" y="302" text-anchor="middle">WET · CLEAR</text></g>
+            <g class="map-zone" data-map-zone="B"><circle class="map-valve" cx="500" cy="194" r="19"></circle><path class="valve-mark" d="M491 185l18 18m0-18l-18 18"></path><path class="field-mark" d="M472 237h56M479 248h42M486 259h28"></path><text x="500" y="169" text-anchor="middle">B02</text><text class="map-zone-state" x="500" y="278" text-anchor="middle">IDLE</text><text class="map-field-state" data-map-field="B" x="500" y="302" text-anchor="middle">WET · CLEAR</text></g>
+            <g class="map-zone" data-map-zone="C"><circle class="map-valve" cx="750" cy="194" r="19"></circle><path class="valve-mark" d="M741 185l18 18m0-18l-18 18"></path><path class="field-mark" d="M722 237h56M729 248h42M736 259h28"></path><text x="750" y="169" text-anchor="middle">C03</text><text class="map-zone-state" x="750" y="278" text-anchor="middle">IDLE</text><text class="map-field-state" data-map-field="C" x="750" y="302" text-anchor="middle">WET · CLEAR</text></g>
+          </svg>
+          <div class="map-mobile" aria-label="Water source through main control to irrigation zones">
+            <div class="mobile-map-source"><strong>WATER SOURCE</strong><span id="map-mobile-water">AVAILABLE</span></div>
+            <div class="mobile-map-controller">MAIN CONTROL <span>D · R' · W</span></div>
+            <div class="mobile-map-zones">
+              <div data-map-mobile-zone="A"><i></i><strong>A01</strong><span class="mobile-map-field">WET · CLEAR</span><span class="mobile-map-valve">VALVE CLOSED</span><b>IDLE</b></div>
+              <div data-map-mobile-zone="B"><i></i><strong>B02</strong><span class="mobile-map-field">WET · CLEAR</span><span class="mobile-map-valve">VALVE CLOSED</span><b>IDLE</b></div>
+              <div data-map-mobile-zone="C"><i></i><strong>C03</strong><span class="mobile-map-field">WET · CLEAR</span><span class="mobile-map-valve">VALVE CLOSED</span><b>IDLE</b></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="operations-row" aria-label="System health and activity">
+        <article class="health-panel" aria-labelledby="health-title">
+          <div class="panel-heading"><div><p class="eyebrow">CONTROLLER DIAGNOSTICS</p><h2 id="health-title">System health</h2></div></div>
+          <div class="health-list">
+            <div><span>Logic engine</span><strong><i class="health-dot"></i><b id="health-logic">READY</b></strong></div>
+            <div><span>Rain override</span><strong><i class="health-dot"></i><b id="health-rain">READY</b></strong></div>
+            <div><span>Water interlock</span><strong><i class="health-dot"></i><b id="health-water">AVAILABLE</b></strong></div>
+            <div><span>Priority arbiter</span><strong><i class="health-dot"></i><b id="health-priority">READY</b></strong></div>
+            <div><span>Zone A input</span><strong><i class="health-dot"></i><b data-health-zone="A">READY</b></strong></div>
+            <div><span>Zone B input</span><strong><i class="health-dot"></i><b data-health-zone="B">READY</b></strong></div>
+            <div><span>Zone C input</span><strong><i class="health-dot"></i><b data-health-zone="C">READY</b></strong></div>
+          </div>
+        </article>
+        <article class="activity-panel" aria-labelledby="activity-title">
+          <div class="panel-heading"><div><p class="eyebrow">SESSION EVENTS</p><h2 id="activity-title">System activity</h2></div><button type="button" id="clear-log" class="text-button">CLEAR LOG</button></div>
+          <ol id="activity-log" class="activity-log" aria-live="polite"><li class="empty-log">No events recorded this session.</li></ol>
+        </article>
+        <article class="session-panel" aria-labelledby="session-title">
+          <div class="panel-heading"><div><p class="eyebrow">CURRENT SESSION</p><h2 id="session-title">Session stats</h2></div><button type="button" id="reset-session" class="text-button">RESET SESSION</button></div>
+          <div class="session-stats">
+            <div><strong id="stat-requests">0</strong><span>IRRIGATION REQUESTS</span></div>
+            <div><strong id="stat-activations">0</strong><span>VALVE ACTIVATIONS</span></div>
+            <div><strong id="stat-rain-blocks">0</strong><span>RAIN BLOCKS</span></div>
+            <div><strong id="stat-water-interlocks">0</strong><span>WATER INTERLOCKS</span></div>
+          </div>
+        </article>
+      </section>
+
+      <section class="logic-section two-column" id="logic" aria-label="Logic details">
+        <article class="panel circuit-panel">
+          <div class="panel-heading"><div><p class="eyebrow">COMBINATIONAL CIRCUIT</p><h2>Digital logic</h2></div><span class="panel-code">FIG 01</span></div>
+          <div class="circuit" role="img" aria-label="Live circuit: dry soil, inverted rain, and available water feed an AND gate and the selected valve">
+            <svg class="logic-svg" viewBox="0 0 900 270" aria-hidden="true" focusable="false">
+              <defs><marker id="logic-arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 Z" fill="currentColor"></path></marker></defs>
+              <g class="svg-labels">
+                <text x="12" y="43">D</text><text id="circuit-d-value" x="12" y="66">LOW</text>
+                <text x="12" y="121">R</text><text id="circuit-r-value" x="12" y="144">LOW</text>
+                <text x="12" y="199">W</text><text id="circuit-w-value" x="12" y="222">HIGH</text>
+                <text x="255" y="108">R' / NOT OUTPUT</text><text id="circuit-not-r-value" x="255" y="128">HIGH</text>
+                <text x="500" y="155" class="gate-label">AND</text><text x="500" y="173" class="gate-sub">GATE</text>
+                <text x="725" y="107">IRRIGATE</text><text id="circuit-output-value" x="725" y="130">LOW</text>
+                <text id="circuit-valve" x="725" y="164" class="selected-valve-label">NO VALVE SELECTED</text>
+              </g>
+              <path class="signal-wire" id="signal-d" d="M112 56 H430" marker-end="url(#logic-arrow)"></path>
+              <circle class="signal-node" id="node-d" cx="112" cy="56" r="4"></circle>
+              <path class="signal-wire" id="signal-r-in" d="M112 134 H175" marker-end="url(#logic-arrow)"></path>
+              <circle class="signal-node" id="node-r" cx="112" cy="134" r="4"></circle>
+              <path class="gate-symbol" d="M178 113 L220 134 L178 155 Z"></path>
+              <circle class="inverter-bubble" cx="228" cy="134" r="6"></circle>
+              <path class="signal-wire" id="signal-r-out" d="M234 134 H430" marker-end="url(#logic-arrow)"></path>
+              <path class="signal-wire" id="signal-w" d="M112 212 H430" marker-end="url(#logic-arrow)"></path>
+              <circle class="signal-node" id="node-w" cx="112" cy="212" r="4"></circle>
+              <path class="and-outline" id="and-outline" d="M430 32 H520 C585 32 625 72 625 134 C625 196 585 236 520 236 H430 Z"></path>
+              <path class="signal-wire output-signal" id="signal-output" d="M625 134 H866" marker-end="url(#logic-arrow)"></path>
+              <circle class="output-node" id="node-output" cx="866" cy="134" r="6"></circle>
+            </svg>
+            <div class="logic-mobile" aria-hidden="true">
+              <div class="mobile-wire-row"><span>D / SOIL</span><i id="mobile-signal-d"></i><strong id="mobile-d-value">LOW</strong></div>
+              <div class="mobile-rain-row"><span>R / RAIN</span><strong id="mobile-r-value">LOW</strong><b class="mobile-not">NOT</b><i id="mobile-signal-not-r"></i><strong id="mobile-not-r-value">HIGH</strong></div>
+              <div class="mobile-wire-row"><span>W / WATER</span><i id="mobile-signal-w"></i><strong id="mobile-w-value">HIGH</strong></div>
+              <div class="mobile-output-row"><b class="mobile-and">AND</b><i id="mobile-signal-output"></i><strong id="mobile-output-value">LOW</strong><small id="mobile-valve">NO VALVE SELECTED</small></div>
+            </div>
+          </div>
+          <div class="circuit-legend"><span><i class="legend-dot soil"></i>HIGH SIGNAL</span><span><i class="legend-dot invert"></i>INVERTED SIGNAL</span><span><i class="legend-dot output"></i>VALVE OUTPUT</span></div>
+        </article>
+
+        <article class="panel expression-panel">
+          <div class="panel-heading"><div><p class="eyebrow">BOOLEAN EXPRESSION</p><h2>Decision trace</h2></div><span class="trace-zone" id="trace-zone">ZONE A TRACE</span></div>
+          <div class="equation">IRRIGATE <span>=</span> D · R' · W</div>
+          <div class="trace-values"><div><span>D</span><b data-trace="D">0</b></div><div><span>R</span><b data-trace="R">0</b></div><div><span>W</span><b data-trace="W">1</b></div></div>
+          <div class="calculation"><span class="calc-label">CURRENT CALCULATION</span><strong id="calculation">0 · 1 · 1 <i>=</i> 0</strong></div>
+          <div id="logic-message" class="logic-message">SOIL IS WET</div>
+          <div class="probe-box">
+            <div class="probe-heading"><div><span class="eyebrow">LOGIC PROBE</span><strong>Zone analyzer</strong></div><label for="probe-zone">ZONE</label></div>
+            <select id="probe-zone" aria-label="Select zone for logic probe"><option value="A">ZONE A</option><option value="B">ZONE B</option><option value="C">ZONE C</option></select>
+            <div class="probe-readout"><span>D <b id="probe-d">0</b></span><span>R <b id="probe-r">0</b></span><span>W <b id="probe-w">1</b></span><span>R' <b id="probe-not-r">1</b></span></div>
+            <div class="probe-equation"><span>D · R' · W</span><strong id="probe-calculation">0 · 1 · 1 = 0</strong></div>
+            <div class="probe-output"><span>OUTPUT</span><strong id="probe-output">LOW</strong></div>
+          </div>
+          <div class="logic-tools">
+            <div class="logic-tool-buttons"><button type="button" id="viva-toggle" class="text-button" aria-expanded="false">VIVA MODE</button><button type="button" id="trace-toggle" class="text-button" aria-expanded="false">TRACE LOGIC</button></div>
+            <div class="trace-panel" id="trace-panel" hidden>
+              <div class="trace-status"><span id="trace-step-number">STEP 01 / 07</span><strong id="trace-step-title">Read D</strong><p id="trace-step-detail">Sample the selected zone's soil-dry input.</p></div>
+              <div class="trace-actions"><button type="button" id="trace-next" class="text-button">NEXT →</button><button type="button" id="trace-auto" class="text-button" aria-pressed="false">AUTO TRACE</button></div>
+            </div>
+            <div class="viva-panel" id="viva-panel" hidden>
+              <strong>LOGIC WALKTHROUGH</strong>
+              <ol id="viva-explanation"></ol>
+              <p id="viva-priority"></p>
+              <button type="button" id="viva-exit" class="text-button">EXIT VIVA MODE</button>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="decision-section two-column" id="priority" aria-label="Priority decision and truth table">
+        <article class="panel priority-panel">
+          <div class="panel-heading"><div><p class="eyebrow">REQUEST BUS / ARBITER</p><h2>Water allocation</h2></div><span class="panel-code">ONE VALVE MAX</span></div>
+          <div class="priority-order"><span>ARBITRATION ORDER</span><span class="priority-rule">FIRST REQUEST WINS</span></div>
+          <div class="priority-list" aria-label="Zone request and selection order">
+            <div class="priority-row" data-priority-zone="A"><b class="rank">01</b><strong>A01</strong><span class="request-lamp"></span><span class="request-state">IDLE</span><span class="winner-mark">WINNER</span></div>
+            <div class="priority-row" data-priority-zone="B"><b class="rank">02</b><strong>B02</strong><span class="request-lamp"></span><span class="request-state">IDLE</span><span class="winner-mark">WINNER</span></div>
+            <div class="priority-row" data-priority-zone="C"><b class="rank">03</b><strong>C03</strong><span class="request-lamp"></span><span class="request-state">IDLE</span><span class="winner-mark">WINNER</span></div>
+          </div>
+          <div class="decision-details">
+            <div><span>ELIGIBLE</span><strong id="eligible-zones">NONE</strong></div>
+            <div><span>VALVE WINNER</span><strong id="selected-zone">NONE</strong></div>
+            <p id="decision-reason">No zone is requesting irrigation.</p>
+          </div>
+        </article>
+        <article class="panel truth-panel" id="truth">
+          <div class="panel-heading"><div><p class="eyebrow">REFERENCE</p><h2>Truth table</h2></div><span class="panel-code">D · R' · W</span></div>
+          <div class="current-input"><span>CURRENT INPUT</span><strong id="truth-current-input">D 0 · R 0 · W 1</strong></div>
+          <table>
+            <thead><tr><th>D</th><th>R</th><th>W</th><th>R'</th><th>IRRIGATE</th></tr></thead>
+            <tbody>
+              <tr data-truth="1-0-1" class="valid-row" tabindex="0" role="button" aria-label="Apply D 1, R 0, W 1 to selected probe zone"><td>1</td><td>0</td><td>1</td><td>1</td><td><b>1</b></td></tr>
+              <tr data-truth="1-1-1" tabindex="0" role="button" aria-label="Apply D 1, R 1, W 1 to selected probe zone"><td>1</td><td>1</td><td>1</td><td>0</td><td>0</td></tr>
+              <tr data-truth="1-0-0" tabindex="0" role="button" aria-label="Apply D 1, R 0, W 0 to selected probe zone"><td>1</td><td>0</td><td>0</td><td>1</td><td>0</td></tr>
+              <tr data-truth="0-0-1" tabindex="0" role="button" aria-label="Apply D 0, R 0, W 1 to selected probe zone"><td>0</td><td>0</td><td>1</td><td>1</td><td>0</td></tr>
+            </tbody>
+          </table>
+          <p class="truth-note"><span></span>Valid condition · select any row to load its inputs</p>
+        </article>
+      </section>
+
+      <section class="demo-section" id="demo" aria-labelledby="demo-title">
+        <div class="section-heading demo-heading"><div><p class="eyebrow">CONTROL SEQUENCES</p><h2 id="demo-title">Demo scenarios</h2></div><p>LOAD INPUT SEQUENCE</p></div>
+        <div class="demo-grid">
+          <button type="button" class="demo-button" data-demo="normal"><span class="demo-number">01</span><span class="demo-name">NORMAL IRRIGATION</span><span class="demo-result">A VALVE OPENS</span></button>
+          <button type="button" class="demo-button" data-demo="rain"><span class="demo-number">02</span><span class="demo-name">RAIN OVERRIDE</span><span class="demo-result">RAIN BLOCKS</span></button>
+          <button type="button" class="demo-button" data-demo="no-water"><span class="demo-number">03</span><span class="demo-name">WATER UNAVAILABLE</span><span class="demo-result">ALL VALVES CLOSED</span></button>
+          <button type="button" class="demo-button" data-demo="priority"><span class="demo-number">04</span><span class="demo-name">PRIORITY TEST</span><span class="demo-result">A WINS</span></button>
+        </div>
+        <div id="scenario-report" class="scenario-report" aria-live="polite">
+          <div class="scenario-heading"><span id="scenario-number">DEMO — / 4</span><strong id="scenario-status">AWAITING SCENARIO</strong></div>
+          <div><span>SCENARIO</span><strong id="scenario-name">No scenario selected</strong></div>
+          <div><span>INPUT</span><strong id="scenario-input">—</strong></div>
+          <div><span>EXPECTED</span><strong id="scenario-expected">—</strong></div>
+          <div><span>RESULT</span><strong id="scenario-result">—</strong></div>
+        </div>
+      </section>
+
+      <section class="workflow-section" aria-labelledby="workflow-title">
+        <div class="section-heading"><div><p class="eyebrow">SYSTEM SEQUENCE</p><h2 id="workflow-title">How it works</h2></div><p class="workflow-summary">A deterministic control path from field conditions to one selected output.</p></div>
+        <div class="workflow-track" aria-label="Field conditions, Boolean logic, irrigation request, priority logic, valve output">
+          <div class="workflow-step"><span>01</span><b>FIELD<br>CONDITIONS</b></div><i>→</i>
+          <div class="workflow-step"><span>02</span><b>BOOLEAN<br>LOGIC</b></div><i>→</i>
+          <div class="workflow-step"><span>03</span><b>IRRIGATION<br>REQUEST</b></div><i>→</i>
+          <div class="workflow-step"><span>04</span><b>PRIORITY<br>LOGIC</b></div><i>→</i>
+          <div class="workflow-step"><span>05</span><b>VALVE<br>OUTPUT</b></div>
+        </div>
+        <ol class="explanation-list">
+          <li>Each zone provides digital input conditions.</li><li>Boolean logic determines whether irrigation is required.</li><li>Water availability is checked.</li><li>Eligible zones are identified.</li><li>Priority logic selects the highest-priority zone.</li><li>The selected valve is activated.</li>
+        </ol>
+      </section>
+
+      <section class="about-section" id="about-logic" aria-labelledby="about-title">
+        <div><p class="eyebrow">PROJECT INTENT</p><h2 id="about-title">The idea</h2></div>
+        <p>Traditional irrigation may water areas that do not need it. This controller isolates the decision layer and allocates water with deterministic digital logic. <b>D</b> = Soil Dry, <b>R</b> = Rain Detected, <b>W</b> = Water Available.</p>
+        <strong class="about-equation">IRRIGATE = D · R' · W</strong>
+        <ul><li>AND logic</li><li>NOT logic</li><li>Digital decisions</li><li>Priority arbitration</li><li>Multi-zone control</li></ul>
+      </section>
+    </main>
+
+    <footer class="identity-plate" aria-label="Project identification">
+      <button type="button" class="plate-id" id="plate-identifier" aria-label="SIRC-01 project identifier">SIRC-01</button>
+      <div class="plate-project"><strong>SMART IRRIGATION DECISION CONTROLLER</strong><span>U24CS306 · DIGITAL LOGIC DESIGN · IAT-1</span></div>
+      <div class="plate-college"><strong>MEENAKSHI SUNDARARAJAN ENGINEERING COLLEGE</strong><span>COMPUTER SCIENCE ENGINEERING · CSE A</span></div>
+      <div class="plate-team"><span>TEAM</span><strong>GALVIN G · ADITHIYA · KULDEEP</strong></div>
+      <span id="easter-egg-message" class="easter-egg-message" hidden>Built for Digital Logic Design</span>
+    </footer>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </div>
+</body>
+</html>
