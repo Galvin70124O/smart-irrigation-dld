@@ -61,7 +61,7 @@
           <span class="status-symbol" aria-hidden="true"></span>
         </div>
         <div class="status-item">
-          <span class="status-label">ACTIVE ZONE</span>
+          <span class="status-label">ACTIVE WATER FLOW</span>
           <strong id="active-zone" class="status-value accent-value">NONE</strong>
         </div>
         <div class="status-item">
@@ -82,6 +82,12 @@
             <div class="segmented" role="group" aria-label="Water availability">
               <button type="button" class="segment is-selected" data-water="available" aria-pressed="true">AVAILABLE</button>
               <button type="button" class="segment" data-water="unavailable" aria-pressed="false">UNAVAILABLE</button>
+            </div>
+            <span class="global-water-label">WATER CAPACITY</span>
+            <div class="segmented" role="group" aria-label="Maximum active irrigation zones">
+              <button type="button" class="segment is-selected" data-capacity="1" aria-pressed="true">1 ZONE</button>
+              <button type="button" class="segment" data-capacity="2" aria-pressed="false">2 ZONES</button>
+              <button type="button" class="segment" data-capacity="3" aria-pressed="false">3 ZONES</button>
             </div>
             <button type="button" class="emergency-button" id="emergency-stop">EMERGENCY STOP</button>
           </div>
@@ -312,16 +318,16 @@
 
       <section class="decision-section two-column" id="priority" aria-label="Priority decision and truth table">
         <article class="panel priority-panel">
-          <div class="panel-heading"><div><p class="eyebrow">REQUEST BUS / ARBITER</p><h2>Water allocation</h2></div><span class="panel-code">ONE VALVE MAX</span></div>
-          <div class="priority-order"><span>ARBITRATION ORDER</span><span class="priority-rule">FIRST REQUEST WINS</span></div>
+          <div class="panel-heading"><div><p class="eyebrow">REQUEST BUS / ARBITER</p><h2>Water allocation</h2></div><span class="panel-code" id="allocation-capacity">MAX ACTIVE ZONES: 1</span></div>
+          <div class="priority-order"><span>ARBITRATION ORDER</span><span class="priority-rule">PRIORITY WHEN DEMAND EXCEEDS CAPACITY</span></div>
           <div class="priority-list" aria-label="Zone request and selection order">
-            <div class="priority-row" data-priority-zone="A"><b class="rank">01</b><strong>A01</strong><span class="request-lamp"></span><span class="request-state">IDLE</span><span class="winner-mark">WINNER</span></div>
-            <div class="priority-row" data-priority-zone="B"><b class="rank">02</b><strong>B02</strong><span class="request-lamp"></span><span class="request-state">IDLE</span><span class="winner-mark">WINNER</span></div>
-            <div class="priority-row" data-priority-zone="C"><b class="rank">03</b><strong>C03</strong><span class="request-lamp"></span><span class="request-state">IDLE</span><span class="winner-mark">WINNER</span></div>
+            <div class="priority-row" data-priority-zone="A"><b class="rank">01</b><strong>A01</strong><span class="request-lamp"></span><span class="request-state">IDLE</span><span class="winner-mark">ACTIVE</span></div>
+            <div class="priority-row" data-priority-zone="B"><b class="rank">02</b><strong>B02</strong><span class="request-lamp"></span><span class="request-state">IDLE</span><span class="winner-mark">ACTIVE</span></div>
+            <div class="priority-row" data-priority-zone="C"><b class="rank">03</b><strong>C03</strong><span class="request-lamp"></span><span class="request-state">IDLE</span><span class="winner-mark">ACTIVE</span></div>
           </div>
           <div class="decision-details">
             <div><span>ELIGIBLE</span><strong id="eligible-zones">NONE</strong></div>
-            <div><span>VALVE WINNER</span><strong id="selected-zone">NONE</strong></div>
+            <div><span>ACTIVE WATER FLOW</span><strong id="selected-zone">NONE</strong></div>
             <p id="decision-reason">No zone is requesting irrigation.</p>
           </div>
         </article>
@@ -359,7 +365,7 @@
       </section>
 
       <section class="workflow-section" aria-labelledby="workflow-title">
-        <div class="section-heading"><div><p class="eyebrow">SYSTEM SEQUENCE</p><h2 id="workflow-title">How it works</h2></div><p class="workflow-summary">A deterministic control path from field conditions to one selected output.</p></div>
+        <div class="section-heading"><div><p class="eyebrow">SYSTEM SEQUENCE</p><h2 id="workflow-title">How it works</h2></div><p class="workflow-summary">Field conditions flow through eligibility, capacity, and priority allocation to multiple valve outputs.</p></div>
         <div class="workflow-track" aria-label="Field conditions, Boolean logic, irrigation request, priority logic, valve output">
           <div class="workflow-step"><span>01</span><b>FIELD<br>CONDITIONS</b></div><i>→</i>
           <div class="workflow-step"><span>02</span><b>BOOLEAN<br>LOGIC</b></div><i>→</i>
@@ -368,7 +374,7 @@
           <div class="workflow-step"><span>05</span><b>VALVE<br>OUTPUT</b></div>
         </div>
         <ol class="explanation-list">
-          <li>Each zone provides digital input conditions.</li><li>Boolean logic determines whether irrigation is required.</li><li>Water availability is checked.</li><li>Eligible zones are identified.</li><li>Priority logic selects the highest-priority zone.</li><li>The selected valve is activated.</li>
+          <li>Each zone provides digital input conditions.</li><li>Boolean logic determines whether irrigation is required.</li><li>Water availability is checked.</li><li>Eligible zones are identified.</li><li>Water capacity activates all eligible zones when possible; priority is used only when demand exceeds it.</li><li>Each allocated valve is activated.</li>
         </ol>
       </section>
 

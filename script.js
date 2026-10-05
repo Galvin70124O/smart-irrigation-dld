@@ -1,6 +1,7 @@
 const zoneNames = ['A', 'B', 'C'];
 const zoneCards = [...document.querySelectorAll('.zone-card')];
 let waterAvailable = true;
+let waterCapacity = 1;
 let emergencyStopped = false;
 let previousSnapshot = null;
 const activityEvents = [];
@@ -44,7 +45,7 @@ function updateZone(zone, request, valveOn) {
   else if (!water) state = 'BLOCKED / NO WATER';
   else if (raining && dry) state = 'BLOCKED / RAIN';
   else if (valveOn) state = 'IRRIGATING';
-  else if (request) state = 'REQUESTING';
+  else if (request) state = 'CAPACITY LIMIT — WAITING';
   stateLabel.textContent = state;
   card.dataset.state = state.toLowerCase().replaceAll(' ', '-').replaceAll('/', '');
   card.classList.toggle('is-active', valveOn);
@@ -53,10 +54,10 @@ function updateZone(zone, request, valveOn) {
 
 function applyPriority(zones) {
   const eligible = zones.filter((zone) => zone.request);
-  const winner = eligible[0] || null;
-  const selected = emergencyStopped ? null : winner;
-  zones.forEach((zone) => updateZone(zone, zone.request, zone === selected));
-  return { eligible, selected };
+  const activeZones = emergencyStopped ? [] : eligible.slice(0, waterCapacity);
+  const selected = activeZones[0] || null;
+  zones.forEach((zone) => updateZone(zone, zone.request, activeZones.includes(zone)));
+  return { eligible, activeZones, selected };
 }
 
 function updateTrace(zone) {
@@ -90,7 +91,8 @@ function updateTrace(zone) {
   if (truthRow) truthRow.classList.add('current-row');
 }
 
-function updateCircuit(zone, selected) {
+function updateCircuit(zone, activeZones) {
+  const selected = activeZones[0] || null;
   const notRain = zone.raining === 0;
   const result = calculateIrrigation(zone.dry, zone.raining, zone.water);
   const setSignal = (id, high, warning = false) => {
@@ -119,13 +121,13 @@ function updateCircuit(zone, selected) {
   document.querySelector('#circuit-w-value').textContent = zone.water ? 'HIGH' : 'LOW';
   document.querySelector('#circuit-not-r-value').textContent = notRain ? 'HIGH' : 'LOW';
   document.querySelector('#circuit-output-value').textContent = result ? 'HIGH' : 'LOW';
-  document.querySelector('#circuit-valve').textContent = selected ? `ZONE ${selected.name} VALVE` : 'NO VALVE SELECTED';
+  document.querySelector('#circuit-valve').textContent = activeZones.length ? `ACTIVE: ${activeZones.map((item) => item.name).join(' + ')}` : 'NO VALVE SELECTED';
   document.querySelector('#mobile-d-value').textContent = zone.dry ? 'HIGH' : 'LOW';
   document.querySelector('#mobile-r-value').textContent = zone.raining ? 'HIGH' : 'LOW';
   document.querySelector('#mobile-not-r-value').textContent = notRain ? 'HIGH' : 'LOW';
   document.querySelector('#mobile-w-value').textContent = zone.water ? 'HIGH' : 'LOW';
   document.querySelector('#mobile-output-value').textContent = result ? 'HIGH' : 'LOW';
-  document.querySelector('#mobile-valve').textContent = selected ? `ZONE ${selected.name} VALVE OPEN` : 'NO VALVE SELECTED';
+  document.querySelector('#mobile-valve').textContent = activeZones.length ? `ACTIVE: ${activeZones.map((item) => item.name).join(' + ')}` : 'NO VALVE SELECTED';
   document.querySelector('#mobile-valve').classList.toggle('is-active', Boolean(selected));
   document.querySelector('#circuit-d-value').classList.toggle('is-high', Boolean(zone.dry));
   document.querySelector('#circuit-r-value').classList.toggle('is-warning', Boolean(zone.raining));
@@ -134,12 +136,13 @@ function updateCircuit(zone, selected) {
   document.querySelector('#circuit-output-value').classList.toggle('is-high', result);
 }
 
-function updatePriority(zones, selected) {
+function updatePriority(zones, activeZones) {
   zones.forEach((zone) => {
     const row = document.querySelector(`[data-priority-zone="${zone.name}"]`);
     row.classList.toggle('is-requesting', zone.request);
-    row.classList.toggle('is-selected', zone === selected);
-    row.querySelector('.request-state').textContent = zone.request ? 'REQUEST' : 'IDLE';
+    const active = activeZones.includes(zone);
+    row.classList.toggle('is-selected', active);
+    row.querySelector('.request-state').textContent = active ? 'ACTIVE' : zone.request ? 'CAPACITY LIMIT — WAITING' : 'IDLE';
   });
 }
 
@@ -161,17 +164,17 @@ function addActivity(message) {
   renderActivity();
 }
 
-function recordActivity(zones, selected) {
+function recordActivity(zones, activeZones) {
   const snapshot = {
     waterAvailable,
     emergencyStopped,
-    selected: selected ? selected.name : null,
+    activeNames: activeZones.map((zone) => zone.name),
     zones: zones.map((zone) => ({
       name: zone.name,
       dry: zone.dry,
       raining: zone.raining,
       request: zone.request,
-      valveOn: zone === selected
+      valveOn: activeZones.includes(zone)
     }))
   };
   if (previousSnapshot) {
@@ -196,8 +199,8 @@ function recordActivity(zones, selected) {
       const wasWaterBlocked = previous.dry && !previous.raining && !previousSnapshot.waterAvailable;
       if (waterBlocked && !wasWaterBlocked) sessionStats.waterInterlocks += 1;
     });
-    if (snapshot.selected !== previousSnapshot.selected && snapshot.selected) {
-      addActivity(`Zone ${snapshot.selected} approved by priority logic`);
+    if (snapshot.activeNames.join(',') !== previousSnapshot.activeNames.join(',') && snapshot.activeNames.length) {
+      addActivity(`Water flow allocated to ${snapshot.activeNames.join(' + ')}`);
     }
     snapshot.zones.forEach((zone, index) => {
       const previous = previousSnapshot.zones[index];
@@ -257,28 +260,28 @@ function updateProbe() {
   output.classList.toggle('is-locked', emergencyStopped);
 }
 
-function updateMap(zones, selected) {
+function updateMap(zones, activeZones) {
   const mapSection = document.querySelector('#live-map');
   mapSection.classList.toggle('is-unavailable', !waterAvailable);
   document.querySelector('#map-water-label').textContent = waterAvailable ? 'AVAILABLE' : 'UNAVAILABLE';
   document.querySelector('#map-mobile-water').textContent = waterAvailable ? 'AVAILABLE' : 'UNAVAILABLE';
   const mapState = document.querySelector('#map-state');
-  mapState.textContent = emergencyStopped ? 'SYSTEM STOPPED' : !waterAvailable ? 'WATER UNAVAILABLE' : selected ? `ZONE ${selected.name} IRRIGATING` : 'SYSTEM READY';
+  mapState.textContent = emergencyStopped ? 'SYSTEM STOPPED' : !waterAvailable ? 'WATER UNAVAILABLE' : activeZones.length ? `ZONES ${activeZones.map((zone) => zone.name).join(' + ')} IRRIGATING` : 'SYSTEM READY';
   mapState.classList.toggle('is-stopped', emergencyStopped);
   zones.forEach((zone) => {
-    const active = zone === selected;
+    const active = activeZones.includes(zone);
     const group = document.querySelector(`[data-map-zone="${zone.name}"]`);
     group.classList.toggle('is-active', active);
-    group.querySelector('.map-zone-state').textContent = active ? 'ACTIVE' : emergencyStopped ? 'LOCKED' : zone.request ? 'REQUEST / WAIT' : 'IDLE';
+    group.querySelector('.map-zone-state').textContent = active ? 'ACTIVE' : emergencyStopped ? 'LOCKED' : zone.request ? 'CAPACITY LIMIT / WAITING' : 'IDLE';
     group.querySelector(`[data-map-field="${zone.name}"]`).textContent = `${zone.dry ? 'DRY' : 'WET'} · ${zone.raining ? 'RAIN DETECTED' : 'CLEAR'}`;
     document.querySelector(`[data-map-pipe="${zone.name}"]`).classList.toggle('is-active', active);
     const mobileZone = document.querySelector(`[data-map-mobile-zone="${zone.name}"]`);
     mobileZone.classList.toggle('is-active', active);
     mobileZone.querySelector('.mobile-map-field').textContent = `${zone.dry ? 'DRY' : 'WET'} · ${zone.raining ? 'RAIN' : 'CLEAR'}`;
     mobileZone.querySelector('.mobile-map-valve').textContent = active ? 'VALVE OPEN' : 'VALVE CLOSED';
-    mobileZone.querySelector('b').textContent = active ? 'ACTIVE' : emergencyStopped ? 'LOCKED' : zone.request ? 'REQUEST / WAIT' : 'IDLE';
+    mobileZone.querySelector('b').textContent = active ? 'ACTIVE' : emergencyStopped ? 'LOCKED' : zone.request ? 'CAPACITY LIMIT / WAITING' : 'IDLE';
   });
-  document.querySelector('.map-pipe.trunk').classList.toggle('is-active', Boolean(selected));
+  document.querySelector('.map-pipe.trunk').classList.toggle('is-active', Boolean(activeZones.length));
 }
 
 function updateHealth(zones) {
@@ -316,7 +319,8 @@ function updateHealth(zones) {
   document.querySelector('.mode-label').textContent = emergencyStopped ? 'MODE: STOPPED' : 'MODE: AUTOMATIC';
 }
 
-function updateDecision(zone, selected, zones) {
+function updateDecision(zone, activeZones, zones) {
+  const selected = activeZones[0] || null;
   const result = calculateIrrigation(zone.dry, zone.raining, zone.water);
   const winner = zones.find((item) => item.request) || null;
   let title = 'NO IRRIGATION';
@@ -330,10 +334,12 @@ function updateDecision(zone, selected, zones) {
     title = 'SYSTEM INTERLOCK';
     zoneLabel = 'WATER SUPPLY UNAVAILABLE';
     reason = 'Water unavailable';
-  } else if (selected) {
+  } else if (activeZones.length) {
     title = 'WATERING';
-    zoneLabel = `ZONE ${selected.name} ACTIVE`;
-    reason = `Zone ${selected.name} has highest priority`;
+    zoneLabel = `ZONES ${activeZones.map((item) => item.name).join(' + ')} ACTIVE`;
+    reason = zones.filter((item) => item.request).length > waterCapacity
+      ? `Priority allocated ${activeZones.map((item) => item.name).join(' + ')} within the water capacity.`
+      : 'All eligible zones are active within the water capacity.';
   } else if (zone.dry && zone.raining) {
     title = 'IRRIGATION BLOCKED';
     zoneLabel = `ZONE ${zone.name} · RAIN DETECTED`;
@@ -364,12 +370,12 @@ function updateDecision(zone, selected, zones) {
       : zone.raining && zone.dry
         ? `Rain detected. R = 1, so R' = 0. D · R' · W = ${zone.dry} · 0 · ${zone.water} = 0. Irrigation is blocked.`
         : zone.dry
-          ? `Zone ${zone.name} is dry and rain is clear. D · R' · W = ${zone.dry} · 1 · ${zone.water} = ${result ? 1 : 0}. ${selected ? `Zone ${selected.name} wins priority.` : 'No valve is selected.'}`
+          ? `Zone ${zone.name} is dry and rain is clear. D · R' · W = ${zone.dry} · 1 · ${zone.water} = ${result ? 1 : 0}. ${activeZones.length ? `Active water flow: ${activeZones.map((item) => item.name).join(' + ')}.` : 'No valve is selected.'}`
           : `Zone ${zone.name} is wet, therefore D = 0. D · R' · W = 0. Irrigation is disabled.`;
   document.querySelector('#why-explanation').textContent = explanation;
 }
 
-function updateViva(zone, selected, zones) {
+function updateViva(zone, activeZones, zones) {
   const values = [
     `D = ${zone.dry}. Zone ${zone.name} is ${zone.dry ? 'dry' : 'wet'}.`,
     `R = ${zone.raining}. Rain is ${zone.raining ? 'detected' : 'not detected'}.`,
@@ -382,14 +388,16 @@ function updateViva(zone, selected, zones) {
   const winner = zones.find((item) => item.request);
   document.querySelector('#viva-priority').textContent = emergencyStopped
     ? 'SYSTEM STOPPED. Reset is required to enable any valve.'
-    : selected
-      ? `ZONE ${selected.name} SELECTED because it has the highest priority.`
+    : activeZones.length
+      ? zones.filter((item) => item.request).length > waterCapacity
+        ? `PRIORITY ALLOCATED ${activeZones.map((item) => item.name).join(' + ')} because demand exceeds capacity ${waterCapacity}.`
+        : `ALL ELIGIBLE ZONES ARE ACTIVE: ${activeZones.map((item) => item.name).join(' + ')}.`
       : winner
         ? `ZONE ${winner.name} is the highest-priority request, but its output is interlocked.`
         : 'No zone is selected because no Boolean request is HIGH.';
 }
 
-function getTraceSteps(zone, selected, zones) {
+function getTraceSteps(zone, activeZones, zones) {
   const result = calculateIrrigation(zone.dry, zone.raining, zone.water);
   const winner = zones.find((item) => item.request);
   return [
@@ -398,13 +406,13 @@ function getTraceSteps(zone, selected, zones) {
     { title: 'Read W', detail: `Water supply is ${zone.water ? 'AVAILABLE' : 'UNAVAILABLE'}: W = ${zone.water}.`, targets: ['#signal-w', '#circuit-w-value'] },
     { title: 'Evaluate AND', detail: `${zone.dry} · ${zone.raining ? 0 : 1} · ${zone.water} = ${result ? 1 : 0}.`, targets: ['#and-outline'] },
     { title: 'Generate request', detail: `Zone ${zone.name} request is ${result ? 'HIGH' : 'LOW'}.`, targets: ['#signal-output', '#circuit-output-value'] },
-    { title: 'Apply priority', detail: winner ? `Zone ${winner.name} is the first eligible request in A → B → C order.` : 'No zone is eligible for allocation.', targets: ['[data-priority-zone]'] },
-    { title: 'Activate valve', detail: emergencyStopped ? 'Emergency stop holds every valve closed.' : selected ? `Valve ${selected.name} is OPEN.` : 'No valve is activated.', targets: ['.valve-output', '.map-zone.is-active'] }
+    { title: 'Allocate capacity', detail: winner ? zones.filter((item) => item.request).length > waterCapacity ? `Demand exceeds capacity ${waterCapacity}; A → B → C priority allocates the available flows.` : 'Demand is within capacity, so all eligible zones receive water.' : 'No zone is eligible for allocation.', targets: ['[data-priority-zone]'] },
+    { title: 'Activate valves', detail: emergencyStopped ? 'Emergency stop holds every valve closed.' : activeZones.length ? `Valves ${activeZones.map((item) => item.name).join(' + ')} are OPEN.` : 'No valve is activated.', targets: ['.valve-output', '.map-zone.is-active'] }
   ];
 }
 
-function renderTraceStep(zone, selected, zones) {
-  const steps = getTraceSteps(zone, selected, zones);
+function renderTraceStep(zone, activeZones, zones) {
+  const steps = getTraceSteps(zone, activeZones, zones);
   traceStepIndex = ((traceStepIndex % steps.length) + steps.length) % steps.length;
   const step = steps[traceStepIndex];
   document.querySelector('#trace-step-number').textContent = `STEP ${String(traceStepIndex + 1).padStart(2, '0')} / ${steps.length}`;
@@ -448,40 +456,41 @@ function updateScenarioReport(zones, selected) {
 function updateSystem() {
   const zones = zoneCards.map(readZone);
   zones.forEach((zone) => { zone.request = calculateIrrigation(zone.dry, zone.raining, zone.water); });
-  const { eligible, selected } = applyPriority(zones);
-  updatePriority(zones, selected);
+  const { eligible, activeZones, selected } = applyPriority(zones);
+  updatePriority(zones, activeZones);
   const waterStatus = document.querySelector('#water-status');
   waterStatus.textContent = waterAvailable ? 'AVAILABLE' : 'UNAVAILABLE';
   waterStatus.closest('.water-status').classList.toggle('is-off', !waterAvailable);
-  document.querySelector('#active-zone').textContent = selected ? `ZONE ${selected.name}` : 'NONE';
+  document.querySelector('#active-zone').textContent = activeZones.length ? activeZones.map((zone) => zone.name).join(' + ') : 'NONE';
   document.querySelector('#eligible-count').innerHTML = `${eligible.length} <small>/ 3</small>`;
-  document.querySelector('#priority-decision').textContent = emergencyStopped ? 'SYSTEM STOPPED' : selected ? `ZONE ${selected.name} SELECTED` : 'AUTOMATIC / STANDBY';
+  document.querySelector('#priority-decision').textContent = emergencyStopped ? 'SYSTEM STOPPED' : activeZones.length ? `FLOW: ${activeZones.map((zone) => zone.name).join(' + ')}` : 'AUTOMATIC / STANDBY';
   document.querySelector('#eligible-zones').textContent = eligible.length ? eligible.map((zone) => zone.name).join(', ') : 'NONE';
-  document.querySelector('#selected-zone').textContent = selected ? `ZONE ${selected.name}` : 'NONE';
+  document.querySelector('#selected-zone').textContent = activeZones.length ? activeZones.map((zone) => zone.name).join(' + ') : 'NONE';
+  document.querySelector('#allocation-capacity').textContent = `MAX ACTIVE ZONES: ${waterCapacity}`;
 
   const reason = document.querySelector('#decision-reason');
   if (emergencyStopped) {
     reason.textContent = 'Emergency stop is engaged. Reset the system to resume valve control.';
   } else if (!waterAvailable) {
     reason.textContent = 'Water is unavailable, so every valve is forced OFF.';
-  } else if (selected) {
-    reason.textContent = `Zone ${selected.name} selected because it has the highest priority.`;
+  } else if (activeZones.length) {
+    reason.textContent = eligible.length > waterCapacity ? `Capacity limit: ${activeZones.map((zone) => zone.name).join(' + ')} active; remaining eligible zones are waiting.` : 'All eligible zones are active within the water capacity.';
   } else {
     reason.textContent = 'No zone is requesting irrigation.';
   }
   const traceZone = selected || zones.find((zone) => zone.request) || zones.find((zone) => zone.name === document.querySelector('#probe-zone').value) || zones[0];
   document.querySelector('#trace-zone').textContent = `ZONE ${traceZone.name} TRACE`;
   updateTrace(traceZone);
-  updateCircuit(traceZone, selected);
+  updateCircuit(traceZone, activeZones);
   document.querySelector('#truth-current-input').textContent = `D ${traceZone.dry} · R ${traceZone.raining} · W ${traceZone.water}`;
-  updateDecision(traceZone, selected, zones);
+  updateDecision(traceZone, activeZones, zones);
   updateProbe();
-  updateMap(zones, selected);
+  updateMap(zones, activeZones);
   updateHealth(zones);
-  recordActivity(zones, selected);
-  updateViva(traceZone, selected, zones);
+  recordActivity(zones, activeZones);
+  updateViva(traceZone, activeZones, zones);
   updateScenarioReport(zones, selected);
-  renderTraceStep(traceZone, selected, zones);
+  renderTraceStep(traceZone, activeZones, zones);
 }
 
 function setControl(card, control, value) {
@@ -501,6 +510,15 @@ function setWater(available) {
   });
 }
 
+function setCapacity(capacity) {
+  waterCapacity = capacity;
+  document.querySelectorAll('[data-capacity]').forEach((button) => {
+    const selected = Number(button.dataset.capacity) === capacity;
+    button.classList.toggle('is-selected', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  });
+}
+
 function resetSystem() {
   emergencyStopped = false;
   lastDemoScenario = null;
@@ -509,6 +527,7 @@ function resetSystem() {
     setControl(card, 'rain', 'no-rain');
   });
   setWater(true);
+  setCapacity(1);
   updateSystem();
 }
 
@@ -593,9 +612,9 @@ function toggleAutoTrace() {
 function refreshTraceStep() {
   const zones = zoneCards.map(readZone);
   zones.forEach((zone) => { zone.request = calculateIrrigation(zone.dry, zone.raining, zone.water); });
-  const { selected } = applyPriority(zones);
+  const { activeZones, selected } = applyPriority(zones);
   const zone = selected || zones.find((item) => item.request) || zones.find((item) => item.name === document.querySelector('#probe-zone').value) || zones[0];
-  renderTraceStep(zone, selected, zones);
+  renderTraceStep(zone, activeZones, zones);
 }
 
 function finishStartup() {
@@ -658,6 +677,7 @@ function runDemo(scenario) {
     setWater(false);
   } else if (scenario === 'priority') {
     zoneCards.forEach((card) => setControl(card, 'soil', 'dry'));
+    setCapacity(1);
   }
   updateSystem();
 }
@@ -679,6 +699,13 @@ document.addEventListener('click', (event) => {
   const waterButton = event.target.closest('[data-water]');
   if (waterButton) {
     setWater(waterButton.dataset.water === 'available');
+    updateSystem();
+    return;
+  }
+
+  const capacityButton = event.target.closest('[data-capacity]');
+  if (capacityButton) {
+    setCapacity(Number(capacityButton.dataset.capacity));
     updateSystem();
     return;
   }
